@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  이 파일을 DerekPortfolio/Resources/FirebaseConfig.plist 로 복사해 값을 채운다.
+  복사한 파일은 .gitignore 에 들어 있어 저장소에 올라가지 않는다.
+
+  API_KEY    : Firebase 콘솔 > 프로젝트 설정 > 웹 API 키
+  PROJECT_ID : Firebase 프로젝트 ID
+-->
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>YOUR_FIREBASE_WEB_API_KEY</string>
+	<key>PROJECT_ID</key>
+	<string>YOUR_FIREBASE_PROJECT_ID</string>
+</dict>
+</plist>

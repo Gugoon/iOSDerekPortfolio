@@ -1,0 +1,59 @@
+# ------------------------------------------------------------
+# 비밀 설정
+# ------------------------------------------------------------
+# 실제 Firebase 키. 저장소에는 FirebaseConfig.example.plist 만 올린다.
+DerekPortfolio/Resources/FirebaseConfig.plist
+*.xcconfig.local
+.env
+.env.*
+
+# ------------------------------------------------------------
+# Xcode
+# ------------------------------------------------------------
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+build/
+DerivedData/
+timeline.xctimeline
+playground.xcworkspace
+
+# Xcode 가 사용자별로 만드는 공유 설정 (스킴은 필요할 때만 올린다)
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/configuration/
+
+# ------------------------------------------------------------
+# Swift Package Manager / CocoaPods / Carthage
+# ------------------------------------------------------------
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+Pods/
+Carthage/Build/
+
+# ------------------------------------------------------------
+# fastlane
+# ------------------------------------------------------------
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# ------------------------------------------------------------
+# 에디터 · OS
+# ------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.idea/
+.vscode/
+*.swp
+*~
