@@ -32,10 +32,6 @@ enum CommonUserDefault {
         return id
     }
 
-    // 이 앱에서는 쓰지 않지만 NetworkViewModel 의 공통 헤더가 읽는다.
-    @UserDefault(key: "shopByToken", defaultValue: "")
-    static var shopByToken: String
-
     @UserDefault(key: "fcmToken", defaultValue: "")
     static var fcmToken: String
 

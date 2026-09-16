@@ -27,7 +27,6 @@ class NetworkViewModel: BaseObservableObject {
         request.setValue("Apple", forHTTPHeaderField: "Device-Brand")
         request.setValue("\(UIDevice.modelName)", forHTTPHeaderField: "Device-Model")
         request.setValue("\(UIDevice.current.systemVersion)", forHTTPHeaderField: "OS-Version")
-        request.setValue("\(CommonUserDefault.shopByToken)", forHTTPHeaderField: "SB-Token")
         request.setValue("\(CommonUserDefault.fcmToken)", forHTTPHeaderField: "X-Token")
         request.setValue("\(CommonUserDefault.googleAnalyticsId)", forHTTPHeaderField: "GA-ID")
         
@@ -57,7 +56,6 @@ class NetworkViewModel: BaseObservableObject {
         request.setValue("\(UIDevice.modelName)", forHTTPHeaderField: "Device-Model")
         request.setValue("\(UIDevice.current.systemVersion)", forHTTPHeaderField: "OS-Version")
         request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
-        request.setValue("\(CommonUserDefault.shopByToken)", forHTTPHeaderField: "SB-Token")
         request.setValue("\(CommonUserDefault.fcmToken)", forHTTPHeaderField: "X-Token")
         request.setValue("\(CommonUserDefault.googleAnalyticsId)", forHTTPHeaderField: "GA-ID")
         
