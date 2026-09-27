@@ -8,6 +8,13 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
+
+extension UTType {
+    /// 프로젝트 카드 드래그 전용 타입. 일반 텍스트로 실으면 펼쳐 둔 카드의 입력칸이
+    /// 드롭을 받아 UUID 가 본문에 들어가고, 다른 텍스트 드래그에도 카드가 반응한다.
+    static let projectDraft = UTType(exportedAs: "com.derek.portfolio.project-draft")
+}
 
 /// 편집 중인 프로젝트 한 건. documentId 가 nil 이면 아직 Firestore 에 저장되지 않은 새 항목이다.
 struct ProjectDraft: Identifiable {
@@ -81,6 +88,8 @@ final class ProjectsEditorViewModel: NetworkViewModel {
     @Published private(set) var savingIds: Set<UUID> = []
     /// 삭제 · 순서 변경 요청이 나가 있는지.
     @Published private(set) var changingList = false
+    /// 드래그로 옮기고 있는 항목.
+    @Published private(set) var draggingId: UUID?
 
     /// 서버에 쓰는 중인지. 그동안은 목록을 넣고 빼거나 옮기지 못하게 한다.
     ///
@@ -162,7 +171,38 @@ final class ProjectsEditorViewModel: NetworkViewModel {
         }
     }
 
-    /// 순서를 바꾸고 곧바로 저장한다. 이미 저장된 문서만 반영되고, 새 항목은 저장 시점에 순서가 잡힌다.
+    /// 드래그를 시작한다. 서버에 쓰는 중이면 끌 수 없다.
+    func beginDrag(_ id: UUID) -> Bool {
+        guard !isBusy else { return false }
+        draggingId = id
+        return true
+    }
+
+    /// 끌고 있는 항목을 target 자리로 옮긴다. 드롭하기 전까지는 화면에서만 바뀐다.
+    func dragOver(_ targetId: UUID) {
+        guard !isBusy, let draggingId, draggingId != targetId,
+              let from = drafts.firstIndex(where: { $0.id == draggingId }),
+              let to = drafts.firstIndex(where: { $0.id == targetId }) else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            drafts.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+        }
+    }
+
+    /// 드롭하면 바뀐 순서를 곧바로 저장한다. 이미 저장된 문서만 반영되고, 새 항목은 저장 시점에 순서가 잡힌다.
+    func endDrag() async {
+        guard draggingId != nil else { return }
+        draggingId = nil
+        guard !isBusy else { return }
+        changingList = true
+        defer { changingList = false }
+        do {
+            try await saveProjectOrder(orderedModels)
+        } catch {
+            await setToastMessage("순서 저장에 실패했습니다: \(error.localizedDescription)", type: .error)
+        }
+    }
+
+    /// 한 칸 옮기고 곧바로 저장한다. 드래그를 쓸 수 없는 VoiceOver 용.
     func move(_ id: UUID, by delta: Int) async {
         guard !isBusy, let index = drafts.firstIndex(where: { $0.id == id }) else { return }
         changingList = true
@@ -194,7 +234,7 @@ struct ProjectsEditorView: View {
             VStack(spacing: AppTheme.spacingMd) {
                 AdminCard(
                     title: "프로젝트 \(viewModel.drafts.count)건",
-                    subtitle: "카드를 눌러 펼치면 내용을 수정할 수 있습니다. 위/아래 화살표로 바꾼 순서는 즉시 저장됩니다."
+                    subtitle: "카드를 눌러 펼치면 내용을 수정할 수 있습니다. 카드를 길게 눌러 끌어 바꾼 순서는 즉시 저장됩니다."
                 ) {
                     HStack(spacing: 8) {
                         AdminButton(label: "새 프로젝트", icon: "plus", outlined: true, enabled: !viewModel.isBusy) {
@@ -215,6 +255,8 @@ struct ProjectsEditorView: View {
             }
             .padding(AppTheme.spacingLg)
             .padding(.bottom, AppTheme.spacing2xl)
+            // 카드 사이 빈 곳에 놓아도 순서가 저장되도록 목록 전체도 드롭을 받는다.
+            .onDrop(of: [.projectDraft], delegate: ProjectDropDelegate(targetId: nil, viewModel: viewModel))
         }
         .scrollDismissesKeyboard(.interactively)
         .alert(
@@ -258,20 +300,38 @@ struct ProjectsEditorView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-
-                AdminIconButton(icon: "arrow.up", label: "위로", enabled: index > 0 && !viewModel.isBusy) {
+                .accessibilityAction(named: "위로 이동") {
                     Task { await viewModel.move(draft.id, by: -1) }
                 }
-                AdminIconButton(icon: "arrow.down", label: "아래로", enabled: index < viewModel.drafts.count - 1 && !viewModel.isBusy) {
+                .accessibilityAction(named: "아래로 이동") {
                     Task { await viewModel.move(draft.id, by: 1) }
                 }
+
                 AdminIconButton(icon: "trash", label: "삭제", color: AppTheme.accent, enabled: !viewModel.isBusy) {
                     pendingDelete = draft
                 }
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(AppTheme.textMuted)
+                    .frame(width: 34, height: 34)
+                    .opacity(viewModel.isBusy ? 0.3 : 1)
+                    .accessibilityHidden(true)
             }
             .padding(.leading, 16)
             .padding(.trailing, 8)
             .padding(.vertical, 12)
+            // 머리 줄을 길게 눌러 끌면 순서를 바꾼다.
+            .onDrag {
+                guard viewModel.beginDrag(draft.id) else { return NSItemProvider() }
+                return NSItemProvider(item: Data(draft.id.uuidString.utf8) as NSData, typeIdentifier: UTType.projectDraft.identifier)
+            } preview: {
+                Text(draft.title.isEmpty ? "(제목 없음)" : draft.title)
+                    .font(AppFonts.sans(14.5, weight: .bold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(AppTheme.surface)
+            }
 
             if draft.expanded, let binding = binding(for: draft.id) {
                 Rectangle().fill(AppTheme.borderLight).frame(height: 1)
@@ -303,6 +363,7 @@ struct ProjectsEditorView: View {
         }
         .paperCard(stroke: isNew ? AppTheme.accent : AppTheme.border)
         .cardShadow()
+        .onDrop(of: [.projectDraft], delegate: ProjectDropDelegate(targetId: draft.id, viewModel: viewModel))
     }
 
     private func categoryField(_ selection: Binding<ProjectCategory>) -> some View {
@@ -344,5 +405,31 @@ struct ProjectsEditorView: View {
                 }
             }
         )
+    }
+}
+
+/// 카드(또는 목록 전체) 위로 끌고 온 프로젝트를 받는다.
+/// 카드에 들어서면 그 자리로 옮기고, 놓으면 순서를 저장한다.
+private struct ProjectDropDelegate: DropDelegate {
+    /// nil 이면 목록 전체. 옮기지 않고 드롭만 받는다.
+    let targetId: UUID?
+    let viewModel: ProjectsEditorViewModel
+
+    func validateDrop(info: DropInfo) -> Bool {
+        viewModel.draggingId != nil
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard let targetId else { return }
+        viewModel.dragOver(targetId)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        Task { await viewModel.endDrag() }
+        return true
     }
 }
